@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	text "github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/exp/rand"
 )
@@ -28,6 +30,7 @@ type Game struct {
 	guesses    []string
 	currentRow int
 	gameWon    bool
+	font       text.Face
 }
 
 func (g *Game) Update() error {
@@ -70,8 +73,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			// Draw letter
 			if row < g.currentRow && col < len(g.guesses[row]) {
 				letter := g.guesses[row][col]
-				text := string(letter)
-				ebitenutil.DebugPrint(screen, text)
+				text.Draw(screen, string(letter), g.font, nil)
 			}
 		}
 	}
@@ -89,12 +91,27 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func (g *Game) handleEnter() error {
+	if len(g.guesses[g.currentRow]) == wordLength {
+		if g.guesses[g.currentRow] == g.targetWord {
+			g.gameWon = true
+		} else {
+			g.currentRow++
+		}
+	}
 	return nil
 }
+
 func (g *Game) handleBackspace() error {
+	if len(g.guesses[g.currentRow]) > 0 {
+		g.guesses[g.currentRow] = g.guesses[g.currentRow][:len(g.guesses[g.currentRow])-1]
+	}
 	return nil
 }
+
 func (g *Game) handleLetterInput(r rune) error {
+	if len(g.guesses[g.currentRow]) < wordLength {
+		g.guesses[g.currentRow] = g.guesses[g.currentRow] + strings.ToUpper(string(r))
+	}
 	return nil
 }
 
@@ -102,26 +119,18 @@ func (g *Game) getTileColor(row, col int) color.Color {
 	letter := g.guesses[row][col]
 	if g.targetWord[col] == letter {
 		return color.RGBA{0, 255, 0, 255} // Green
-	} else if containsRune(g.targetWord, rune(letter)) {
+	} else if strings.ContainsRune(g.targetWord, rune(letter)) {
 		return color.RGBA{255, 255, 0, 255} // Yellow
 	}
 	return color.RGBA{128, 128, 128, 255} // Gray
-}
-
-func containsRune(s string, r rune) bool {
-	for _, c := range s {
-		if c == r {
-			return true
-		}
-	}
-	return false
 }
 
 func main() {
 	// Choose a random word (Temporal)
 	wordList := []string{"MESSI", "SUSANA", "MIRTHA", "MARCELO"}
 	targetWord := wordList[rand.Intn(len(wordList))]
-
+	// Load font
+	// Initialize game
 	g := &Game{
 		targetWord: targetWord,
 		guesses:    make([]string, maxGuesses),
