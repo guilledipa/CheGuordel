@@ -8,6 +8,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -56,7 +57,10 @@ func (g *Game) Update() error {
 		g.handleBackspace()
 	} else {
 		for _, r := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-			if inpututil.IsKeyJustPressed(ebiten.Key(r)) {
+			// Calculate the correct Ebiten key code for the letter
+			key := ebiten.KeyA + ebiten.Key(unicode.ToUpper(r)-'A')
+			if inpututil.IsKeyJustPressed(key) {
+				fmt.Println(rune(r))
 				g.handleLetterInput(rune(r))
 				break
 			}
@@ -85,13 +89,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			// Draw tile
 			vector.DrawFilledRect(screen, float32(x), float32(y), float32(tileSize), float32(tileSize), tileColor, false)
 			// Draw letter
-			if row < g.currentRow && col < len(g.guesses[row]) {
+			if row <= g.currentRow && col < len(g.guesses[row]) {
 				letter := g.guesses[row][col]
 				// Calculate text bounds to get width and height
 				textWidth, textHeight := text.Measure(string(letter), f, 0)
 				// Calculate position to center the letter within the tile
 				textX := float64(x) + (float64(tileSize)-textWidth)/2
-				textY := float64(y) + (float64(tileSize)-textHeight)/2 + textHeight
+				textY := float64(y) + (float64(tileSize)-textHeight)/2
 				// Draw
 				op := &text.DrawOptions{}
 				op.GeoM.Translate(textX, textY)
@@ -126,6 +130,7 @@ func (g *Game) handleBackspace() error {
 }
 
 func (g *Game) handleLetterInput(r rune) error {
+	fmt.Println(string(r))
 	if len(g.guesses[g.currentRow]) < wordLength {
 		g.guesses[g.currentRow] = g.guesses[g.currentRow] + strings.ToUpper(string(r))
 	}
