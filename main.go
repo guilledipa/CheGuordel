@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -20,6 +19,7 @@ import (
 	text "github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/exp/rand"
+	"golang.org/x/exp/utf8string"
 )
 
 var (
@@ -52,8 +52,8 @@ const (
 // Game implements ebiten.Game interface
 type Game struct {
 	mode       Mode
-	targetWord string
-	guesses    []string
+	targetWord *utf8string.String
+	guesses    [][]rune
 	currentRow int
 	gameWon    bool
 	font       text.Face
@@ -79,7 +79,7 @@ func (g *Game) Update() error {
 				// Calculate the correct Ebiten key code for the letter
 				key := ebiten.KeyA + ebiten.Key(unicode.ToUpper(r)-'A')
 				if inpututil.IsKeyJustPressed(key) {
-					g.handleLetterInput(rune(r))
+					g.handleLetterInput(r)
 					break
 				}
 			}
@@ -119,8 +119,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			vector.DrawFilledRect(screen, float32(x), float32(y), float32(tileSize), float32(tileSize), tileColor, false)
 			// Draw letter
 			if row <= g.currentRow && col < len(g.guesses[row]) {
-				r, _ := utf8.DecodeRuneInString(g.guesses[row][col:]) // Decode the rune
-				letter := fmt.Sprintf("%c", r)
+				letter := string(g.guesses[row][col])
 				// Calculate text bounds to get width and height
 				textWidth, textHeight := text.Measure(letter, f, 0)
 				// Calculate position to center the letter within the tile
@@ -153,13 +152,13 @@ func (g *Game) handleEnter() error {
 	}
 
 	// Check if the word is in the valid word list
-	if !isValidWord(strings.ToLower(g.guesses[g.currentRow])) {
+	if !isValidWord(strings.ToLower(string(g.guesses[g.currentRow]))) {
 		// Handle invalid word (e.g., display an error message)
 		fmt.Printf("%q no es una palabra válida.\n", g.guesses[g.currentRow])
 		return nil
 	}
 	// Check if the guess is correct
-	if g.guesses[g.currentRow] == g.targetWord {
+	if string(g.guesses[g.currentRow]) == g.targetWord.String() {
 		g.gameWon = true
 		return nil
 	}
@@ -177,22 +176,23 @@ func (g *Game) handleBackspace() error {
 
 func (g *Game) handleLetterInput(r rune) error {
 	if len(g.guesses[g.currentRow]) < wordLength {
-		var sb strings.Builder
-		sb.WriteString(g.guesses[g.currentRow]) // Add the existing string
-		sb.WriteRune(r)                         // Add the rune (handles multi-byte correctly)
-		g.guesses[g.currentRow] = sb.String()
-		fmt.Println(g.guesses[g.currentRow])
+		g.guesses[g.currentRow] = append(g.guesses[g.currentRow], r)
 	}
+	fmt.Println(g.guesses[g.currentRow])
 	return nil
 }
 
 func (g *Game) getTileColor(row, col int) color.Color {
 	if row >= 0 && row < len(g.guesses) && col >= 0 && col < len(g.guesses[row]) {
 		letter := g.guesses[row][col]
-		if g.targetWord[col] == letter {
+		if g.targetWord.At(col) == letter {
 			return color.RGBA{0, 255, 0, 255} // Green
-		} else if strings.ContainsRune(g.targetWord, rune(letter)) {
-			return color.RGBA{255, 255, 0, 255} // Yellow
+		} else {
+			for i := 0; i < wordLength; i++ {
+				if g.targetWord.At(i) == letter {
+					return color.RGBA{255, 255, 0, 255} // Yellow
+				}
+			}
 		}
 	}
 	return color.RGBA{128, 128, 128, 255} // Gray
@@ -243,15 +243,14 @@ func init() {
 }
 
 func main() {
-	targetWord := strings.ToUpper(randomWord(validWords))
-	fmt.Println(targetWord)
 	// Initialize game
 	g := &Game{
-		targetWord: targetWord,
-		guesses:    make([]string, maxGuesses),
+		targetWord: utf8string.NewString(strings.ToUpper(randomWord(validWords))),
+		guesses:    make([][]rune, maxGuesses),
 		currentRow: 0,
 		gameWon:    false,
 	}
+	fmt.Println(g.targetWord)
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("CheGuordle!")
 	if err := ebiten.RunGame(g); err != nil {
