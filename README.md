@@ -4,3 +4,7 @@
 Argentino.
 
 Sera desarrollado usando https://ebitengine.org
+
+## Build
+
+Leer [Ebitengine WebAssembly docs](https://ebitengine.org/en/documents/webassembly.html).
