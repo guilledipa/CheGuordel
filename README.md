@@ -22,7 +22,7 @@ cp $(go env GOROOT)/misc/wasm/wasm_exec.js .
 ```shell
 $Env:GOOS = 'js'
 $Env:GOARCH = 'wasm'
-go build -o yourgame.wasm github.com/guilledipa/cheguordel
+go build -o cheguordel.wasm github.com/guilledipa/cheguordel
 Remove-Item Env:GOOS
 Remove-Item Env:GOARCH
 ```
