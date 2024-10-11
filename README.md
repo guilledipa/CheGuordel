@@ -49,7 +49,7 @@ if (!WebAssembly.instantiateStreaming) {
 }
 
 const go = new Go();
-WebAssembly.instantiateStreaming(fetch("yourgame.wasm"), go.importObject).then(result => {
+WebAssembly.instantiateStreaming(fetch("cheguordel.wasm"), go.importObject).then(result => {
     go.run(result.instance);
 });
 </script>
