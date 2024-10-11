@@ -40,8 +40,8 @@ const (
 )
 
 const (
-	screenWidth    = 800
-	screenHeight   = 600
+	screenWidth    = 310
+	screenHeight   = 370
 	maxGuesses     = 6
 	wordLength     = 5
 	tileSize       = 50
