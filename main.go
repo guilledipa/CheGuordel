@@ -34,8 +34,8 @@ var notoSansRegularTTF []byte
 type Mode int
 
 const (
-	// modeTitle  Mode = iota
-	modeGame Mode = iota
+	modeTitle Mode = iota
+	modeGame
 	modeGameOver
 )
 
@@ -59,12 +59,18 @@ type Game struct {
 	font       text.Face
 }
 
-// Update does stuff..
+// Update proceeds the game state.
+// Update is called every tick (1/60 [s] by default).
+// TODO(me): Add reset of initial conditions for win and gameOver
 func (g *Game) Update() error {
 	switch g.mode {
+	case modeTitle:
+		if isClicked() {
+			g.mode = modeGame
+		}
 	case modeGame:
 		if g.gameWon {
-			return nil // Game over, stop processing inputs
+			g.mode = modeTitle
 		}
 		if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
 			g.handleEnter()
@@ -89,54 +95,68 @@ func (g *Game) Update() error {
 			g.mode = modeGameOver
 		}
 	case modeGameOver:
-		// Not implemented yet.
-		return nil
+		if isClicked() {
+			g.mode = modeTitle
+		}
 	}
 	return nil
 }
 
 // Draw draws the game screen and is called after every update.
 func (g *Game) Draw(screen *ebiten.Image) {
-	if g.mode == modeGameOver {
-		ebitenutil.DebugPrint(screen, fmt.Sprintf("Perdiste... La palabra era: %s", g.targetWord))
-	}
 	f := &text.GoTextFace{
 		Source: fontFaceSource,
 		Size:   normalFontSize,
 	}
-	// Draw grid
-	for row := 0; row < maxGuesses; row++ {
-		for col := 0; col < wordLength; col++ {
-			x := col*tileSize + (col+1)*tileSpacing
-			y := row*tileSize + (row+1)*tileSpacing
-			// Draw tile background
-			tileColor := color.Color(color.White)
-			// Only color tiles in completed rows
-			if row < g.currentRow || g.gameWon {
-				tileColor = g.getTileColor(row, col)
-			}
-			// Draw tile
-			vector.DrawFilledRect(screen, float32(x), float32(y), float32(tileSize), float32(tileSize), tileColor, false)
-			// Draw letter
-			if row <= g.currentRow && col < len(g.guesses[row]) {
-				letter := string(g.guesses[row][col])
-				// Calculate text bounds to get width and height
-				textWidth, textHeight := text.Measure(letter, f, 0)
-				// Calculate position to center the letter within the tile
-				textX := float64(x) + (float64(tileSize)-textWidth)/2
-				textY := float64(y) + (float64(tileSize)-textHeight)/2
-				// Draw
-				op := &text.DrawOptions{}
-				op.GeoM.Translate(textX, textY)
-				op.ColorScale.ScaleWithColor(color.Black)
-				text.Draw(screen, letter, f, op)
-				ebitenutil.DebugPrint(screen, letter)
+	// Draw title screen
+	if g.mode == modeTitle {
+		op := &text.DrawOptions{}
+		op.ColorScale.ScaleWithColor(color.White)
+		welcomeMessage := "Clickea para empezar!"
+		text.Draw(screen, welcomeMessage, f, op)
+	}
+	// Draw game over screen
+	if g.mode == modeGameOver {
+		op := &text.DrawOptions{}
+		op.ColorScale.ScaleWithColor(color.White)
+		msg := fmt.Sprintf("Perdiste. Rta: %s", g.targetWord)
+		text.Draw(screen, msg, f, op)
+	}
+	// Draw game grid
+	if g.mode == modeGame {
+		for row := 0; row < maxGuesses; row++ {
+			for col := 0; col < wordLength; col++ {
+				x := col*tileSize + (col+1)*tileSpacing
+				y := row*tileSize + (row+1)*tileSpacing
+				// Draw tile background
+				tileColor := color.Color(color.White)
+				// Only color tiles in completed rows
+				if row < g.currentRow || g.gameWon {
+					tileColor = g.getTileColor(row, col)
+				}
+				// Draw tile
+				vector.DrawFilledRect(screen, float32(x), float32(y), float32(tileSize), float32(tileSize), tileColor, false)
+				// Draw letter
+				if row <= g.currentRow && col < len(g.guesses[row]) {
+					letter := string(g.guesses[row][col])
+					// Calculate text bounds to get width and height
+					textWidth, textHeight := text.Measure(letter, f, 0)
+					// Calculate position to center the letter within the tile
+					textX := float64(x) + (float64(tileSize)-textWidth)/2
+					textY := float64(y) + (float64(tileSize)-textHeight)/2
+					// Draw
+					op := &text.DrawOptions{}
+					op.GeoM.Translate(textX, textY)
+					op.ColorScale.ScaleWithColor(color.Black)
+					text.Draw(screen, letter, f, op)
+					ebitenutil.DebugPrint(screen, letter)
+				}
 			}
 		}
-	}
-	// Display game over message
-	if g.gameWon {
-		ebitenutil.DebugPrint(screen, "Ganaste!")
+		// Display game over message
+		if g.gameWon {
+			ebitenutil.DebugPrint(screen, "Ganaste!")
+		}
 	}
 }
 
@@ -220,6 +240,15 @@ func randomWord(m map[string]any) string {
 		r--
 	}
 	panic("randomWord: unreachable point.")
+}
+
+// isClicked returns true if the left mouse button is clicked or the screen is
+// touched.
+func isClicked() bool {
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		return true
+	}
+	return len(ebiten.AppendTouchIDs(nil)) != 0
 }
 
 func init() {
